@@ -1,16 +1,27 @@
 Klipper Service Load Balancer
 =================
 
-_NOTE: this repository has been recently (2020-11-18) moved out of the github.com/rancher org to github.com/k3s-io
-supporting the [acceptance of K3s as a CNCF sandbox project](https://github.com/cncf/toc/pull/447)_.
-
----
-
 This is the runtime image for the integrated service load balancer in klipper. This
 works by using a host port for each service load balancer and setting up
 iptables to forward the request to the cluster IP. The regular k8s scheduler will
 find a free host port. If there are no free host ports, the service load balancer
 will stay in pending.
+
+```shell
+# Enable IP forward
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+# Change source IP address to the host interface IP (outgoing)
+iptables -t nat -I POSTROUTING -d ${TRAEFIK_SVC_LB_IP}/32 -p TCP -j MASQUERADE
+# Change target IP address to traefik LB for TCP port 80 and the source IP != traefik service load balancer IP (incoming)
+iptables -t nat -I PREROUTING ! -s ${TRAEFIK_SVC_LB_IP}/32 -p TCP --dport 80 -j DNAT --to ${TRAEFIK_SVC_LB_IP}:80
+
+# Change source IP address to the host interface IP (outgoing)
+iptables -t nat -I POSTROUTING -d ${TRAEFIK_SVC_LB_IP}/32 -p TCP -j MASQUERADE
+# Change target IP address to traefik LB for TCP port 443 and the source IP != traefik service load balancer IP (incoming)
+iptables -t nat -I PREROUTING ! -s ${TRAEFIK_SVC_LB_IP}/32 -p TCP --dport 443 -j DNAT --to ${TRAEFIK_SVC_LB_IP}:443
+```
+
 
 ## Building
 
